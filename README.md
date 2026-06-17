@@ -1,15 +1,40 @@
 # 8-bit Single-Cycle CPU in Verilog
 
-A minimal 8-bit single-cycle CPU built from scratch in Verilog for learning computer architecture. Every fundamental hardware block is implemented as a standalone module and wired into a complete datapath.
+---
+
+## What the CPU Does
+
+- Fetches an 8-bit instruction every clock cycle from instruction memory
+- Decodes the opcode and generates control signals
+- Executes arithmetic, logic, load/store, and branch operations
+- Writes results back to a 4-register file or data memory
+- Branches by adding a sign-extended offset to the PC
+
+**Verified program:**
+```asm
+LDI R1, 3      ; R1 = 3
+LDI R2, 2      ; R2 = 2
+ADD R1, R2     ; R1 = 3 + 2 = 5
+ST  R1, 0      ; MEM[0] = 5
+```
+
+**Simulation output:**
+```
+PC     = 5
+R1     = 5
+R2     = 2
+MEM[0] = 5
+```
 
 ---
 
-## Architecture Overview
+## Architecture
 
 - **ISA:** Custom 8-bit fixed-length instruction set
 - **Architecture:** Harvard (separate instruction and data memory)
-- **Registers:** 4 × 8-bit general purpose (R0 hardwired to zero)
-- **Memory:** 256 × 8-bit instruction memory, 8 × 8-bit data memory
+- **Registers:** 4 × 8-bit (R0 hardwired to zero, R1–R3 general purpose)
+- **Instruction Memory:** 256 × 8-bit ROM
+- **Data Memory:** 8 × 8-bit RAM
 - **Design:** Single-cycle — one instruction completes per clock cycle
 
 ---
@@ -18,15 +43,14 @@ A minimal 8-bit single-cycle CPU built from scratch in Verilog for learning comp
 
 | Module | Type | Description |
 |--------|------|-------------|
-| `pc` | Sequential | Program Counter — holds address of current instruction |
-| `imem` | Combinational | Instruction Memory — ROM storing the program |
-| `control` | Combinational | Control Unit — decodes opcode, drives all control signals |
-| `regfile` | Sequential | Register File — 4×8-bit, 2 read ports, 1 write port |
-| `alu` | Combinational | ALU — ADD, SUB, AND, OR; outputs result + flags |
-| `sign_ext` | Combinational | Sign Extender — extends 3-bit immediate to 8 bits |
-| `dmem` | Sequential | Data Memory — 8 locations, supports LOAD and STORE |
-| `datapath` | Mixed | Wires all blocks together with MUXes |
-| `cpu` | Top | Top-level: datapath + control |
+| `PC.v` | Sequential | Program Counter — increments each cycle, loads branch target on taken branch |
+| `imem.v` | Combinational | Instruction Memory — ROM addressed by PC, outputs raw instruction bits |
+| `control.v` | Combinational | Control Unit — decodes opcode, drives all datapath control signals |
+| `reg_file.v` | Mixed | Register File — 2 async read ports, 1 sync write port, R0 hardwired zero |
+| `alu.v` | Combinational | ALU — ADD, SUB, AND, OR with zero, carry, overflow, negative flags |
+| `sign_ext.v` | Combinational | Sign Extender — extends 3-bit immediate to 8 bits |
+| `dmem.v` | Sequential | Data Memory — synchronous write, combinational read, gated by mem_write/mem_read |
+| `cpu.v` | Top | Wires all blocks together with MUXes and branch logic |
 
 ---
 
@@ -40,14 +64,12 @@ R-Type  (register operations)
 │  [7:5]  │ [4:3]  │ [2:1]  │  [0]   │
 │  opcode │   rs   │   rd   │ unused │
 └─────────┴────────┴────────┴────────┘
-Operation: rd ← rd OP rs
 
 I-Type  (immediate / memory / branch)
 ┌─────────┬────────┬────────────────┐
 │  [7:5]  │ [4:3]  │    [2:0]       │
 │  opcode │ rd/rs  │  immediate     │
 └─────────┴────────┴────────────────┘
-Operation depends on opcode
 ```
 
 ### Instruction Set
@@ -65,10 +87,91 @@ Operation depends on opcode
 
 ### Register File
 
-| Register | Alias | Notes |
-|----------|-------|-------|
-| R0 | zero | Hardwired to 0. Reads always return 0; writes are discarded |
-| R1 | — | General purpose |
-| R2 | — | General purpose |
-| R3 | — | General purpose |
+| Register | Notes |
+|----------|-------|
+| R0 | Hardwired to 0. Writes discarded. |
+| R1–R3 | General purpose |
 
+---
+
+## Simulation Results
+
+Program: `LDI R1,3 → LDI R2,2 → ADD R1,R2 → ST R1,0`
+
+| Signal | Expected | Got |
+|--------|----------|-----|
+| R1 | 5 | ✅ 5 |
+| R2 | 2 | ✅ 2 |
+| MEM[0] | 5 | ✅ 5 |
+| PC | 5 | ✅ 5 |
+
+---
+
+## Waveforms to Check
+
+Open the simulation waveform in Vivado and add these signals. They tell the complete story of each instruction cycle.
+
+### 1. Clock and Reset
+| Signal | What to look for |
+|--------|-----------------|
+| `clk` | Toggles every 5ns |
+| `rst` | High for 20ns then low — no register writes should happen while high |
+
+### 2. Fetch Stage
+| Signal | What to look for |
+|--------|-----------------|
+| `u_pc/pc_out` | Steps 0 → 1 → 2 → 3 → 4 after reset releases |
+| `u_imem/instr` | Should read 8B → 92 → 12 → C8 as PC increments |
+
+### 3. Decode Stage
+| Signal | What to look for |
+|--------|-----------------|
+| `opcode` | Changes each cycle: 100 → 100 → 000 → 110 |
+| `alu_src` | 1 for LDI/ST/LD, 0 for ADD/SUB |
+| `reg_write` | 1 for LDI and ADD, 0 for ST |
+| `mem_write` | Pulses high only on cycle 4 (ST instruction) |
+| `write_addr` | Should be 01 (R1), 10 (R2), 01 (R1), 01 (R1) |
+
+### 4. Execute Stage
+| Signal | What to look for |
+|--------|-----------------|
+| `alu_a` | 0 for LDI (forced), then register values for ADD |
+| `alu_b` | Immediate for LDI, register for ADD |
+| `u_alu/result` | 3 → 2 → 5 → 0 across the 4 cycles |
+| `zero` | Goes high when result is 0 (used by BEQ) |
+
+### 5. Writeback
+| Signal | What to look for |
+|--------|-----------------|
+| `wb_data` | Value being written to register file each cycle |
+| `u_rf/registers[1]` | 0 → 3 → 3 → 5 → 5 |
+| `u_rf/registers[2]` | 0 → 0 → 2 → 2 → 2 |
+| `u_dmem/mem[0]` | X → X → X → X → 5 (written on ST cycle) |
+
+### Key things to verify in waveform
+- No register writes while `rst = 1`
+- `pc_out` increments exactly once per clock after reset
+- `mem_write` is only high for exactly one cycle (the ST instruction)
+- `wb_data` matches the expected ALU result each cycle
+
+---
+
+## Project Structure
+
+```
+8bit-cpu/
+├── src/
+│   ├── PC.v
+│   ├── imem.v
+│   ├── control.v
+│   ├── reg_file.v
+│   ├── alu.v
+│   ├── sign_ext.v
+│   ├── dmem.v
+│   └── cpu.v
+├── tb/
+│   └── cpu_tb.v
+└── README.md
+```
+
+---
