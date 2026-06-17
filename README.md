@@ -105,6 +105,7 @@ Program: `LDI R1,3 → LDI R2,2 → ADD R1,R2 → ST R1,0`
 | MEM[0] | 5 | ✅ 5 |
 | PC | 5 | ✅ 5 |
 
+<img width="2326" height="774" alt="image" src="https://github.com/user-attachments/assets/bf548ea8-d904-492c-9b67-ad12c4700be0" />
 ---
 
 ## Waveforms to Check
