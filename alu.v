@@ -1,24 +1,4 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 06/17/2026 02:36:55 PM
-// Design Name: 
-// Module Name: alu
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
-
 
 module alu(
     input  [7:0] a,
@@ -39,12 +19,12 @@ module alu(
         case(alu_op)  
         3'b000: begin         
         {carry, result}  = {1'b0, a} + {1'b0, b};
-        overflow = (a[7] == b[7]) && (result[7] != a[7]);   
+            overflow = (a[7] == b[7]) && (result[7] != a[7]);   //checks if both inputs have the same sign and result is opp sign of input, then overflow occurs
         end
         
         3'b001: begin
         {carry, result} = {1'b0, a} - {1'b0, b};
-        overflow = (a[7] != b[7]) && (result[7] != a[7]);  
+        overflow = (a[7] != b[7]) && (result[7] != a[7]);
         end
         
         3'b010: begin
@@ -59,6 +39,6 @@ module alu(
       
         endcase
     end
-    assign zero     = (result == 8'b0);
-    assign negative = result[7];
+    assign zero     = (result == 8'b0); // if result is all 0's then then we start the zero flag (0-neg, 1-pos)
+    assign negative = result[7]; // read the 8th bit 
 endmodule
