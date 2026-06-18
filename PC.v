@@ -1,30 +1,11 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 06/17/2026 03:37:29 PM
-// Design Name: 
-// Module Name: PC
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
 
 module PC (
     input clk,
     input rst,
-    input branch_taken,
-    input [7:0] branch_target,
-    output reg [7:0] pc_out
+    input branch_taken, //1: branch target gets stored in pc_out
+    input [7:0] branch_target, //if branch is taken then it jumps the pc to another instruction, if not pc goes to next instruction
+    output reg [7:0] pc_out //works as a counter
 
 );
 
