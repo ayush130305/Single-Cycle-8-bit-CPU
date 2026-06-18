@@ -10,6 +10,16 @@
 - Writes results back to a 4-register file or data memory
 - Branches by adding a sign-extended offset to the PC
 
+## Block Diagram
+
+<img width="1045" height="703" alt="WhatsApp Image 2026-06-18 at 12 24 15 PM" src="https://github.com/user-attachments/assets/7a00c193-8200-474c-b738-43b19536da24" />
+
+## Flow
+
+<img width="1038" height="676" alt="WhatsApp Image 2026-06-18 at 12 24 15 PM (1)" src="https://github.com/user-attachments/assets/25813b67-ea52-4bf9-8c76-a21bccf23f9a" />
+
+
+
 **Verified program:**
 ```asm
 LDI R1, 3      ; R1 = 3
