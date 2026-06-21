@@ -4,11 +4,12 @@
 
 ## What the CPU Does
 
-- Fetches an 8-bit instruction every clock cycle from instruction memory
-- Decodes the opcode and generates control signals
-- Executes arithmetic, logic, load/store, and branch operations
+- Fetches a 16-bit instruction every clock cycle from instruction memory
+- Decodes the 4-bit opcode and generates control signals
+- Executes arithmetic, logic, shift, load/store, and branch operations
 - Writes results back to a 4-register file or data memory
-- Branches by adding a sign-extended offset to the PC
+- Branches by adding a signed 8-bit offset to the PC
+- Unconditional jump via `BEQ R0, offset` — R0 is hardwired zero
 
 ## Block Diagram
 
@@ -17,8 +18,6 @@
 ## Flow
 
 <img width="1038" height="676" alt="WhatsApp Image 2026-06-18 at 12 24 15 PM (1)" src="https://github.com/user-attachments/assets/25813b67-ea52-4bf9-8c76-a21bccf23f9a" />
-
-
 
 **Verified program:**
 ```asm
@@ -40,10 +39,10 @@ MEM[0] = 5
 
 ## Architecture
 
-- **ISA:** Custom 8-bit fixed-length instruction set
+- **ISA:** Custom 16-bit fixed-length instruction set
 - **Architecture:** Harvard (separate instruction and data memory)
 - **Registers:** 4 × 8-bit (R0 hardwired to zero, R1–R3 general purpose)
-- **Instruction Memory:** 256 × 8-bit ROM
+- **Instruction Memory:** 256 × 16-bit ROM
 - **Data Memory:** 8 × 8-bit RAM
 - **Design:** Single-cycle — one instruction completes per clock cycle
 
@@ -54,11 +53,11 @@ MEM[0] = 5
 | Module | Type | Description |
 |--------|------|-------------|
 | `PC.v` | Sequential | Program Counter — increments each cycle, loads branch target on taken branch |
-| `imem.v` | Combinational | Instruction Memory — ROM addressed by PC, outputs raw instruction bits |
-| `control.v` | Combinational | Control Unit — decodes opcode, drives all datapath control signals |
+| `imem.v` | Combinational | Instruction Memory — 256×16 ROM addressed by PC, outputs raw instruction bits |
+| `control.v` | Combinational | Control Unit — decodes 4-bit opcode, drives all datapath control signals |
 | `reg_file.v` | Mixed | Register File — 2 async read ports, 1 sync write port, R0 hardwired zero |
-| `alu.v` | Combinational | ALU — ADD, SUB, AND, OR with zero, carry, overflow, negative flags |
-| `sign_ext.v` | Combinational | Sign Extender — extends 3-bit immediate to 8 bits |
+| `alu.v` | Combinational | ALU — ADD SUB AND OR XOR NOT SHL SHR MOV with zero, carry, overflow, negative flags |
+| `sign_ext.v` | Combinational | Immediate passthrough — 8-bit immediate, signed via 2's complement |
 | `dmem.v` | Sequential | Data Memory — synchronous write, combinational read, gated by mem_write/mem_read |
 | `cpu.v` | Top | Wires all blocks together with MUXes and branch logic |
 
@@ -70,30 +69,38 @@ MEM[0] = 5
 
 ```
 R-Type  (register operations)
-┌─────────┬────────┬────────┬────────┐
-│  [7:5]  │ [4:3]  │ [2:1]  │  [0]   │
-│  opcode │   rs   │   rd   │ unused │
-└─────────┴────────┴────────┴────────┘
+┌──────────┬────────┬────────┬──────────────────┐
+│ [15:12]  │ [11:10]│  [9:8] │     [7:0]        │
+│  opcode  │   rs   │   rd   │   unused (0x00)  │
+└──────────┴────────┴────────┴──────────────────┘
 
 I-Type  (immediate / memory / branch)
-┌─────────┬────────┬────────────────┐
-│  [7:5]  │ [4:3]  │    [2:0]       │
-│  opcode │ rd/rs  │  immediate     │
-└─────────┴────────┴────────────────┘
+┌──────────┬────────┬────────┬──────────────────┐
+│ [15:12]  │ [11:10]│  [9:8] │     [7:0]        │
+│  opcode  │  rd/rs │ unused │   immediate      │
+└──────────┴────────┴────────┴──────────────────┘
 ```
 
 ### Instruction Set
 
 | Opcode | Mnemonic | Format | Operation |
 |--------|----------|--------|-----------|
-| `000` | `ADD rd, rs` | R | `rd ← rd + rs` |
-| `001` | `SUB rd, rs` | R | `rd ← rd - rs` |
-| `010` | `AND rd, rs` | R | `rd ← rd & rs` |
-| `011` | `OR  rd, rs` | R | `rd ← rd \| rs` |
-| `100` | `LDI rd, imm` | I | `rd ← sign_ext(imm)` |
-| `101` | `LD  rd, imm` | I | `rd ← MEM[imm]` |
-| `110` | `ST  rs, imm` | I | `MEM[imm] ← rs` |
-| `111` | `BEQ rs, imm` | I | `if rs == 0: PC ← PC + sign_ext(imm)` |
+| `0000` | `ADD rd, rs` | R | `rd ← rd + rs` |
+| `0001` | `SUB rd, rs` | R | `rd ← rd - rs` |
+| `0010` | `AND rd, rs` | R | `rd ← rd & rs` |
+| `0011` | `OR  rd, rs` | R | `rd ← rd \| rs` |
+| `0100` | `XOR rd, rs` | R | `rd ← rd ^ rs` |
+| `0101` | `NOT rd`     | R | `rd ← ~rd` |
+| `0110` | `SHL rd, rs` | R | `rd ← rd << rs` |
+| `0111` | `SHR rd, rs` | R | `rd ← rd >> rs` |
+| `1000` | `CMP rd, rs` | R | flags only, no writeback |
+| `1001` | `MOV rd, rs` | R | `rd ← rs` |
+| `1010` | `LDI rd, imm` | I | `rd ← imm` |
+| `1011` | `LD  rd, imm` | I | `rd ← MEM[imm]` |
+| `1100` | `ST  rs, imm` | I | `MEM[imm] ← rs` |
+| `1101` | `BEQ rs, imm` | I | `if rs == 0: PC ← PC + imm` |
+| `1110` | `BNE rs, imm` | I | `if rs != 0: PC ← PC + imm` |
+| `1111` | reserved | — | — |
 
 ### Register File
 
@@ -116,6 +123,7 @@ Program: `LDI R1,3 → LDI R2,2 → ADD R1,R2 → ST R1,0`
 | PC | 5 | ✅ 5 |
 
 <img width="2326" height="774" alt="image" src="https://github.com/user-attachments/assets/bf548ea8-d904-492c-9b67-ad12c4700be0" />
+
 ---
 
 ## Waveforms to Check
@@ -132,12 +140,12 @@ Open the simulation waveform in Vivado and add these signals. They tell the comp
 | Signal | What to look for |
 |--------|-----------------|
 | `u_pc/pc_out` | Steps 0 → 1 → 2 → 3 → 4 after reset releases |
-| `u_imem/instr` | Should read 8B → 92 → 12 → C8 as PC increments |
+| `u_imem/instr` | 0xA403 → 0xA802 → 0x0900 → 0xC400 as PC increments |
 
 ### 3. Decode Stage
 | Signal | What to look for |
 |--------|-----------------|
-| `opcode` | Changes each cycle: 100 → 100 → 000 → 110 |
+| `opcode` | Changes each cycle: 1010 → 1010 → 0000 → 1100 |
 | `alu_src` | 1 for LDI/ST/LD, 0 for ADD/SUB |
 | `reg_write` | 1 for LDI and ADD, 0 for ST |
 | `mem_write` | Pulses high only on cycle 4 (ST instruction) |
