@@ -1,10 +1,11 @@
 `timescale 1ns / 1ps
-
+// Instruction memory - combinational read, no clock
+// 256 x 16-bit ROM, addressed by PC
 module imem(
-    input [7:0] addr, //address from PC — selects which instruction to fetch
-    output[7:0] instr //fed into decoder to extract opcode, registers, immediate
+    input [7:0] addr,
+    output[15:0] instr
     );
-    reg [7:0] rom [255:0]; //created a memory array of 256, with 8 bit entries
+    reg [15:0] rom [255:0];
     
 //    initial begin
 //    $readmemh("program.mem", rom);

@@ -6,21 +6,22 @@ module cpu (
 );
     // Fetch
     wire [7:0] pc_out;
-    wire [7:0] instr;
+    wire [15:0] instr;
 
     // Instruction fields
-    wire [2:0] opcode;
+    wire [3:0] opcode;
     wire [1:0] rs, rd;
-    wire [2:0] imm;
+    wire [7:0] imm;
     wire [7:0] imm_ext;
 
     // Control signals
     wire       reg_write;
     wire       alu_src;
-    wire [2:0] alu_op;
+    wire [3:0] alu_op;
     wire       mem_read;
     wire       mem_write;
     wire       branch;
+    wire       branch_ne;
     wire       mem_to_reg;
 
     // Datapath
@@ -37,16 +38,16 @@ module cpu (
     assign write_addr = alu_src ? rs : rd;
 
     // Instructions
-    assign opcode        = instr[7:5];
-    assign rs            = instr[4:3];
-    assign rd            = instr[2:1];
-    assign imm           = instr[2:0];
+    assign opcode        = instr[15:12];
+    assign rs            = instr[11:10];    
+    assign rd            = instr[9:8];
+    assign imm           = instr[7:0];
 
     // mux block
     assign alu_b         = alu_src ? imm_ext : read_src;
     assign wb_data       = mem_to_reg ? rd_data : alu_result;
     assign branch_target = pc_out + imm_ext;
-    assign branch_taken  = branch & zero;
+    assign branch_taken = (branch & zero) | (branch_ne & ~zero);
     wire reg_write_gated = reg_write & ~rst;
 
     PC u_pc (
@@ -70,6 +71,7 @@ module cpu (
         .mem_read  (mem_read),
         .mem_write (mem_write),
         .branch    (branch),
+        .branch_ne    (branch_ne), 
         .mem_to_reg(mem_to_reg)
     );
 

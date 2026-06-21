@@ -1,69 +1,111 @@
 `timescale 1ns / 1ps
 
 module control(
-    input [2:0] opcode, //contains opcodes (which then get decoded to the instruction 000 -> 111)
-    output reg reg_write, // tells register to be written, 1 : writes data into reg_d, 0 : ignore
-    output reg alu_src, // 0: r type (reads from reg), 1: i type (reads from imm output)
-    output reg [2:0] alu_op, // check alu code
-    output reg mem_read, // 1: used for LD (puts mem[addr] into address)
-    output reg mem_write, // 1: used for ST (puts read data in mem[addr])
-    output reg branch, //used in pc mux 
-    output reg mem_to_reg //0: used in alu (ADD, SUB, AND, OR, LDI), 1: dmem op (load function so store that in memory (R1))
+    input [3:0] opcode,
+    output reg reg_write,
+    output reg alu_src,
+    output reg [3:0] alu_op,
+    output reg mem_read,
+    output reg mem_write,
+    output reg branch,
+    output reg branch_ne,
+    output reg mem_to_reg
     );
     
     always @(*) begin
     
-        reg_write  = 1'b0; 
+        reg_write  = 1'b0;
         alu_src    = 1'b0;
-        alu_op     = 3'b000;
+        alu_op     = 4'b0000;
         mem_read   = 1'b0;
         mem_write  = 1'b0;
         branch     = 1'b0;
+        branch_ne = 1'b0;
         mem_to_reg = 1'b0;   
          
     case (opcode)
-            3'b000: begin // ADD
+            4'b0000: begin // ADD
                 reg_write = 1'b1;
-                alu_op    = 3'b000; 
+                alu_op    = 4'b0000; 
             end
             
-            3'b001: begin // SUB
+            4'b0001: begin // SUB
                 reg_write = 1'b1;
-                alu_op    = 3'b001; 
+                alu_op    = 4'b0001; 
             end 
             
-            3'b010: begin // AND
+            4'b0010: begin // AND
                 reg_write = 1'b1;
-                alu_op    = 3'b010; 
+                alu_op    = 4'b0010; 
             end                       
  
-            3'b011: begin // OR
+            4'b0011: begin // OR
                 reg_write = 1'b1;
-                alu_op    = 3'b011; 
+                alu_op    = 4'b0011; 
             end
-                        
-            3'b100: begin // LDI 
+            
+            4'b0100: begin //xor
+            reg_write = 1;
+            alu_op = 4'b0100;        
+            end
+ 
+            4'b0101: begin //not
+            reg_write = 1;
+            alu_op = 4'b0101;
+            end
+            
+            4'b0110: begin //shl
+            reg_write=1;
+            alu_op = 4'b0110;
+            end  
+            
+            4'b0111: begin
+            reg_write=1;
+            alu_op = 4'b0111;
+            end
+            
+            4'b1000: begin
+            reg_write = 0;
+            alu_op = 4'b0001;
+            end               
+                                                      
+            4'b1001: begin 
+            reg_write=1;
+            alu_op = 4'b1001;            
+            end
+            
+            4'b1010: begin // LDI 
                 reg_write  = 1'b1;
                 alu_src    = 1'b1; 
             end
             
-            3'b101: begin // LD (Load from Memory)
+            4'b1011: begin // LD (Load from Memory)
                 alu_src = 1'b1;
                 reg_write  = 1'b1;
                 mem_read   = 1'b1;
                 mem_to_reg = 1'b1; 
             end
             
-            3'b110: begin // ST (Store to Memory)
+            4'b1100: begin // ST (Store to Memory)
                 alu_src = 1'b1;
                 mem_write  = 1'b1;
             end
-            
-            3'b111: begin // BEQ (Branch if Equal)
-                branch     = 1'b1; 
-                alu_op     = 3'b001; 
+ 
+            4'b1101: begin // BEQ (Branch if Equal)
+                branch     = 1'b1;
+                alu_op     = 4'b0001; 
+            end            
+
+            4'b1110: begin //bne
+            reg_write=0;
+            branch_ne = 1;
+            alu_op = 4'b0001;            
             end
             
+            4'b1111: begin  //reserved
+       
+            end
+                                    
             default: begin
 
             end

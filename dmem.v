@@ -3,14 +3,14 @@
 
 module dmem(
     input clk,
-    input mem_read, // used for LD, enables reading from mem[addr] onto the data bus → goes to register
-    input mem_write, // // used for ST, writes wr_data into mem[addr] on clock edge
-    input [7:0] addr, //address
-    input [7:0] wr_data, // after mem_wr is 1 it allows data in wr_data to be written to mem[addr]
-    output [7:0] rd_data // if mem_rd is 1 it allows mem[addr] to be accessed to be read
+    input mem_read,
+    input mem_write,
+    input [7:0] addr,
+    input [7:0] wr_data,
+    output [7:0] rd_data
     );
 
-    reg [7:0] mem [7:0]; //mem array in register
+reg [7:0] mem [7:0];
 assign rd_data = mem_read ? mem[addr] : 8'b0;
 
 always @(posedge clk)
