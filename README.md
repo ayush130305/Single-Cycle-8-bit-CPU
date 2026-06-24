@@ -14,11 +14,13 @@
 
 ## Block Diagram
 
-<img width="1045" height="703" alt="WhatsApp Image 2026-06-18 at 12 24 15 PM" src="https://github.com/user-attachments/assets/7a00c193-8200-474c-b738-43b19536da24" />
+<img width="1047" height="777" alt="WhatsApp Image 2026-06-24 at 2 24 16 PM" src="https://github.com/user-attachments/assets/a91f0b89-6e90-4177-807a-d7fd00796b15" />
+
 
 ## Flow
 
-<img width="1038" height="676" alt="WhatsApp Image 2026-06-18 at 12 24 15 PM (1)" src="https://github.com/user-attachments/assets/25813b67-ea52-4bf9-8c76-a21bccf23f9a" />
+<img width="1038" height="844" alt="WhatsApp Image 2026-06-24 at 2 24 17 PM" src="https://github.com/user-attachments/assets/ed31aae3-3b9b-4717-8b1b-9b129a3f2105" />
+
 
 **Verified program:**
 ```asm
@@ -175,74 +177,4 @@ Program: `LDI R1,3 → LDI R2,2 → ADD R1,R2 → BEQ R0,+2 → [flushed] → ST
 
 ---
 
-## Waveforms to Check
 
-Open the simulation waveform in Vivado and add these signals.
-
-### 1. Clock and Reset
-| Signal | What to look for |
-|--------|-----------------|
-| `clk` | Toggles every 5ns |
-| `rst` | High for 40ns then low — pipeline registers zero during reset |
-
-### 2. Fetch Stage
-| Signal | What to look for |
-|--------|-----------------|
-| `u_pc/pc_out` | Steps 0 → 1 → 2 → 3 → 4 after reset, freezes on stall |
-| `u_imem/instr` | 0xA403 → 0xA802 → 0x0900 → 0xC400 as PC increments |
-
-### 3. Decode Stage
-| Signal | What to look for |
-|--------|-----------------|
-| `opcode` | Changes each cycle: 1010 → 1010 → 0000 → 1100 |
-| `alu_src` | 1 for LDI/ST/LD, 0 for ADD/SUB |
-| `reg_write` | 1 for LDI and ADD, 0 for ST |
-| `mem_write` | Pulses high only on ST instruction |
-| `write_addr` | Should be 01 (R1), 10 (R2), 01 (R1), 01 (R1) |
-
-### 4. Execute Stage
-| Signal | What to look for |
-|--------|-----------------|
-| `alu_a` | 0 for LDI (forced), then register values for ADD |
-| `alu_b` | Immediate for LDI, register for ADD |
-| `u_alu/result` | 3 → 2 → 5 → 0 across the 4 cycles |
-| `zero` | Goes high when result is 0 (used by BEQ) |
-
-### 5. Hazard Signals
-| Signal | What to look for |
-|--------|-----------------|
-| `load_use_hazard` | Pulses high for exactly 1 cycle on LD followed by immediate use |
-| `flush` | Pulses high same cycle branch_taken fires |
-| `branch_taken` | Goes high when BEQ/BNE condition met |
-| `forward_A` | Goes high when forwarding to ALU input A |
-| `forward_B` | Goes high when forwarding to ALU input B |
-
-### 6. Writeback
-| Signal | What to look for |
-|--------|-----------------|
-| `wb_data` | Value being written to register file each cycle |
-| `u_rf/registers[1]` | Updates after LDI and ADD |
-| `u_rf/registers[2]` | Updates after LDI R2 |
-| `u_dmem/mem[0]` | Updates after ST |
-
----
-
-## Project Structure
-
-```
-8bit-cpu/
-├── src/
-│   ├── PC.v
-│   ├── imem.v
-│   ├── control.v
-│   ├── reg_file.v
-│   ├── alu.v
-│   ├── sign_ext.v
-│   ├── dmem.v
-│   └── cpu.v
-├── tb/
-│   └── cpu_tb.v
-└── README.md
-```
-
----
